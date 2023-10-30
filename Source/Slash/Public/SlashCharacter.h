@@ -15,6 +15,8 @@ class UInputMappingContext;
 class UInputAction;
 class UGroomComponent;
 class AMyItem;
+class AWeapon;
+class UAnimMontage;
 
 
 UCLASS()
@@ -65,9 +67,39 @@ protected:
 	void Move(const FInputActionValue& Value);
 	void Look(const FInputActionValue& Value);
 	void EKeyPressed(const FInputActionValue& Value);
+	void Attack(const FInputActionValue& Value);
+
+
+	bool bCanAttack();
+	bool bCanDisarm();
+	bool bCanArm();
+
+	void PlayEquipMontage(FName SectionName);
+	void PlayAttackMontage();
+
+	UFUNCTION(BlueprintCallable)
+	void AttackEnd();
+
+	UFUNCTION(BlueprintCallable)
+	void FinishEquipping();
+
+	UFUNCTION(BlueprintCallable)
+	void Disarm();
+
+	UFUNCTION(BlueprintCallable)
+	void Arm();
+
+	UFUNCTION(BlueprintCallable)
+	void SetWeaponCollisionEnabled(ECollisionEnabled::Type CollisionEnabled);
+
 private:
 
+	float offset = 4.8f;
+
 	ECharacterState CharacterState = ECharacterState::ECS_Unequipped;
+
+	UPROPERTY(BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	EActionState ActionState = EActionState::EAS_Unoccupied;
 
 	UPROPERTY(VisibleAnywhere)
 	USpringArmComponent* CameraBoom;
@@ -83,4 +115,14 @@ private:
 
 	UPROPERTY(VisibleInstanceOnly)
 	AMyItem* OverlappingItem;
+
+	UPROPERTY(VisibleAnywhere, Category = Weapon)
+	AWeapon* EquippedWeapon;
+
+
+	UPROPERTY(EditDefaultsOnly, Category = Montages)
+	UAnimMontage* AttackMontage;
+
+	UPROPERTY(EditDefaultsOnly, Category = Montages)
+	UAnimMontage* EquipMontage;
 };
