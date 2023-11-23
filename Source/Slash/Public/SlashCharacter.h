@@ -94,7 +94,7 @@ protected:
 
 private:
 
-	float offset = 4.8f;
+	float offset = 5.2f;
 
 	ECharacterState CharacterState = ECharacterState::ECS_Unequipped;
 

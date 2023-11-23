@@ -4,6 +4,7 @@
 #include "MyItem.h"
 #include "SlashCharacter.h"
 #include "Components/SphereComponent.h"
+#include "NiagaraComponent.h"
 
 // Sets default values
 AMyItem::AMyItem()
@@ -17,6 +18,8 @@ AMyItem::AMyItem()
 	Sphere = CreateDefaultSubobject<USphereComponent>(TEXT("Sphere"));
 	Sphere->SetupAttachment(GetRootComponent());
 
+	EmbersEffect = CreateDefaultSubobject<UNiagaraComponent>(TEXT("Embers"));
+	EmbersEffect->SetupAttachment(GetRootComponent());
 }
 
 float AMyItem::TransformedSin()

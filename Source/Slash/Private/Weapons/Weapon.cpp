@@ -7,6 +7,8 @@
 #include "Components/SphereComponent.h"
 #include "Components/BoxComponent.h"
 #include "Interfaces/HitInterface.h"
+#include "NiagaraComponent.h"
+
 AWeapon::AWeapon()
 {
 	WeaponBox = CreateDefaultSubobject<UBoxComponent>(TEXT("Weapon Box"));
@@ -37,6 +39,10 @@ void AWeapon::Equip(USceneComponent* InParent, FName InSocketName)
 	if (Sphere)
 	{
 		Sphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
+	if (EmbersEffect)
+	{
+		EmbersEffect->Deactivate();
 	}
 }
 
@@ -72,6 +78,11 @@ void AWeapon::OnBoxOverlap(UPrimitiveComponent* OverlappedComponent, AActor* Oth
 	TArray<AActor*> ActorToIgnore;
 	ActorToIgnore.Add(this);
 
+	for (AActor* Actor : IgnoreActors)
+	{
+		ActorToIgnore.AddUnique(Actor);
+	}
+
 	FHitResult BoxHit;
 
 	//Perform box trace
@@ -79,7 +90,7 @@ void AWeapon::OnBoxOverlap(UPrimitiveComponent* OverlappedComponent, AActor* Oth
 		BoxTraceStart->GetComponentRotation(),
 		ETraceTypeQuery::TraceTypeQuery1,
 		false,
-		ActorToIgnore,
+		IgnoreActors,
 		EDrawDebugTrace::ForDuration,
 		BoxHit,
 		true
@@ -90,7 +101,11 @@ void AWeapon::OnBoxOverlap(UPrimitiveComponent* OverlappedComponent, AActor* Oth
 		IHitInterface* HitInterface = Cast<IHitInterface>(BoxHit.GetActor());
 		if (HitInterface)
 		{
-			HitInterface->GetHit(BoxHit.ImpactPoint);
+			//HitInterface->GetHit(BoxHit.ImpactPoint);
+			HitInterface->Execute_GetHit(BoxHit.GetActor(), BoxHit.ImpactPoint);//BlueprintNativeEvent creates a new function named 'Execute_GetHit'
 		}
+		IgnoreActors.AddUnique(BoxHit.GetActor());
+
+		CreateFields(BoxHit.ImpactPoint);
 	}
 }
