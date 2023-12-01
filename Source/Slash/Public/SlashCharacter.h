@@ -6,6 +6,7 @@
 #include "GameFramework/Character.h"
 #include "InputActionValue.h"
 #include "CharacterTypes.h"
+#include "BaseCharacter.h"
 #include "SlashCharacter.generated.h"
 
 
@@ -20,7 +21,7 @@ class UAnimMontage;
 
 
 UCLASS()
-class SLASH_API ASlashCharacter : public ACharacter
+class SLASH_API ASlashCharacter : public ABaseCharacter
 {
 	GENERATED_BODY()
 
@@ -89,8 +90,7 @@ protected:
 	UFUNCTION(BlueprintCallable)
 	void Arm();
 
-	UFUNCTION(BlueprintCallable)
-	void SetWeaponCollisionEnabled(ECollisionEnabled::Type CollisionEnabled);
+
 
 private:
 
@@ -115,9 +115,6 @@ private:
 
 	UPROPERTY(VisibleInstanceOnly)
 	AMyItem* OverlappingItem;
-
-	UPROPERTY(VisibleAnywhere, Category = Weapon)
-	AWeapon* EquippedWeapon;
 
 
 	UPROPERTY(EditDefaultsOnly, Category = Montages)
