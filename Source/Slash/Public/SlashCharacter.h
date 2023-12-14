@@ -16,7 +16,6 @@ class UInputMappingContext;
 class UInputAction;
 class UGroomComponent;
 class AMyItem;
-class AWeapon;
 class UAnimMontage;
 
 
@@ -38,6 +37,8 @@ public:
 	FORCEINLINE void SetOverlappingItem(AMyItem* Item) { OverlappingItem = Item; }
 
 	FORCEINLINE ECharacterState GetCharacterState() const { return CharacterState; }
+
+	virtual void GetHit_Implementation(const FVector& ImpactPoint, AActor* Hitter) override;
 
 
 protected:
@@ -68,29 +69,31 @@ protected:
 	void Move(const FInputActionValue& Value);
 	void Look(const FInputActionValue& Value);
 	void EKeyPressed(const FInputActionValue& Value);
-	void Attack(const FInputActionValue& Value);
+	virtual void Attack(const FInputActionValue& Value) override;
+	virtual bool CanAttack() override;
+	virtual void AttackEnd() override;
 
 
-	bool bCanAttack();
 	bool bCanDisarm();
 	bool bCanArm();
+	void Disarm();
+	void Arm();
+	void EquipWeapon(AWeapon* Weapon);
 
 	void PlayEquipMontage(FName SectionName);
-	void PlayAttackMontage();
 
-	UFUNCTION(BlueprintCallable)
-	void AttackEnd();
 
 	UFUNCTION(BlueprintCallable)
 	void FinishEquipping();
 
 	UFUNCTION(BlueprintCallable)
-	void Disarm();
+	void AttachWeaponToBack();
 
 	UFUNCTION(BlueprintCallable)
-	void Arm();
+	void AttachWeaponToHand();
 
-
+	UFUNCTION(BlueprintCallable)
+	void HitReactEnd();
 
 private:
 
@@ -117,8 +120,7 @@ private:
 	AMyItem* OverlappingItem;
 
 
-	UPROPERTY(EditDefaultsOnly, Category = Montages)
-	UAnimMontage* AttackMontage;
+
 
 	UPROPERTY(EditDefaultsOnly, Category = Montages)
 	UAnimMontage* EquipMontage;
