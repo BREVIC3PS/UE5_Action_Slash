@@ -7,6 +7,7 @@
 #include "InputActionValue.h"
 #include "CharacterTypes.h"
 #include "BaseCharacter.h"
+#include "Interfaces/PickupInterface.h"
 #include "SlashCharacter.generated.h"
 
 
@@ -17,10 +18,13 @@ class UInputAction;
 class UGroomComponent;
 class AMyItem;
 class UAnimMontage;
-
+class USlashOverlap;
+class ASoul;
+class ATreasure;
+class AEnemy;
 
 UCLASS()
-class SLASH_API ASlashCharacter : public ABaseCharacter
+class SLASH_API ASlashCharacter : public ABaseCharacter, public IPickupInterface
 {
 	GENERATED_BODY()
 
@@ -33,14 +37,25 @@ public:
 
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-
-	FORCEINLINE void SetOverlappingItem(AMyItem* Item) { OverlappingItem = Item; }
+	virtual void Jump() override;
+	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
 
 	FORCEINLINE ECharacterState GetCharacterState() const { return CharacterState; }
 
+	FORCEINLINE EActionState GetActionState() const { return ActionState; }
+
+	FORCEINLINE ECharacterMoveState GetMoveState() const { return MoveState; }
+
+	FORCEINLINE ETurningInPlace GetTurningInPlace() const { return TurningInPlace; }
+
 	virtual void GetHit_Implementation(const FVector& ImpactPoint, AActor* Hitter) override;
 
-
+	virtual void SetOverlappingItem(AMyItem* Item) override;
+	virtual void AddSouls(ASoul* Soul) override;
+	virtual void AddGold(ATreasure* Treasure) override;
+	void AimOffset(float DeltaTime);
+	FORCEINLINE float GetAO_Yaw() const { return AO_Yaw; }
+	FORCEINLINE float GetAO_Pitch() const { return AO_Pitch; }
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -66,12 +81,28 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
 	UInputAction* DodgeAction;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
+	UInputAction* LockAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
+	UInputAction* AimStartAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
+	UInputAction* AimEndAction;
+
 	void Move(const FInputActionValue& Value);
 	void Look(const FInputActionValue& Value);
 	void EKeyPressed(const FInputActionValue& Value);
+	void Dodge(const FInputActionValue& Value);
+	void ChangeToLockedControl();
+	void ChangeToUnlockedControl();
+	void Lock(const FInputActionValue& Value);
+	void AimButtonPressed(const FInputActionValue& Value);
+	void AimButtonReleased(const FInputActionValue& Value);
 	virtual void Attack(const FInputActionValue& Value) override;
 	virtual bool CanAttack() override;
 	virtual void AttackEnd() override;
+	virtual void DodgeEnd() override;
 
 
 	bool bCanDisarm();
@@ -79,9 +110,13 @@ protected:
 	void Disarm();
 	void Arm();
 	void EquipWeapon(AWeapon* Weapon);
+	void EquipBow();
 
 	void PlayEquipMontage(FName SectionName);
+	virtual void Die() override;
 
+	void LockOnToNearestEnemy(float DeltaTime);
+	void FindNearestEnemy();
 
 	UFUNCTION(BlueprintCallable)
 	void FinishEquipping();
@@ -97,12 +132,25 @@ protected:
 
 private:
 
-	float offset = 5.2f;
+	bool IsUnoccupied();
 
+	UPROPERTY(EditAnywhere)
+	float WalkSpeed = 300.f;
+
+	UPROPERTY(EditAnywhere)
+	float RunSpeed = 500.f;
+
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, meta = (AllowPrivateAccess = "true"))
 	ECharacterState CharacterState = ECharacterState::ECS_Unequipped;
 
-	UPROPERTY(BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, meta = (AllowPrivateAccess = "true"))
+	ECharacterMoveState MoveState = ECharacterMoveState::ECMS_Unlocked;
+
+	UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	EActionState ActionState = EActionState::EAS_Unoccupied;
+
+	UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	ETurningInPlace TurningInPlace = ETurningInPlace::ETIP_NotTurning;
 
 	UPROPERTY(VisibleAnywhere)
 	USpringArmComponent* CameraBoom;
@@ -119,9 +167,25 @@ private:
 	UPROPERTY(VisibleInstanceOnly)
 	AMyItem* OverlappingItem;
 
-
-
-
 	UPROPERTY(EditDefaultsOnly, Category = Montages)
 	UAnimMontage* EquipMontage;
+
+	UPROPERTY()
+	USlashOverlap* SlashOverlay;
+	
+	void InitializeSlashOverlay();
+
+	void SetHUDHealth();
+
+	// Reference to the currently locked-on enemy
+	AEnemy* LockedEnemy = nullptr;
+
+	AEnemy* NearestEnemy = nullptr;
+
+	float AO_Yaw;
+	float InterpAO_Yaw;
+	float AO_Pitch;
+	FRotator StartingAimRotation;
+
+	void TurnInPlace(float DeltaTime);
 };

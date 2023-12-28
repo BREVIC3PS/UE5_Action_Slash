@@ -13,6 +13,7 @@
 #include "AttributeComponents.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "AIController.h"
+#include "Soul.h"
 #include "Weapons/Weapon.h"
 
 // Fill out your copyright notice in the Description page of Project Settings.
@@ -85,7 +86,41 @@ void AEnemy::GetHit_Implementation(const FVector& ImpactPoint, AActor* Hitter)
 	ClearAttackTimer();
 	SetWeaponCollisionEnabled(ECollisionEnabled::NoCollision);
 	StopAttackMontage();
+	if (IsInsideAttackRadius() && IsAlive())
+	{
+		StartAttackTimer();
+	}
 
+}
+
+UWorldUserWidget* AEnemy::GetTargetWidget() const
+{
+	return ActiveTargetWidget;
+}
+
+void AEnemy::Select()
+{
+	if (ActiveTargetWidget == nullptr)
+	{
+		ActiveTargetWidget = CreateWidget<UWorldUserWidget>(GetWorld(), TargetBarWidgetClass);
+		if (ActiveTargetWidget)
+		{
+			ActiveTargetWidget->AttachedActor = this;
+			ActiveTargetWidget->AddToViewport();
+		}
+	}
+	else
+	{
+		ActiveTargetWidget->SetVisibility(ESlateVisibility::Visible);
+	}
+}
+
+void AEnemy::CancelSelect()
+{
+	if (ActiveTargetWidget)
+	{
+		ActiveTargetWidget->SetVisibility(ESlateVisibility::Hidden);
+	}
 }
 
 void AEnemy::BeginPlay()
@@ -97,22 +132,34 @@ void AEnemy::BeginPlay()
 	Tags.Add(FName("Enemy"));
 }
 
+void AEnemy::SpawnSoul()
+{
+	UWorld* World = GetWorld();
+	if (World && SoulClass && Attributes)
+	{
+		FVector SpawnLocation = GetActorLocation() + FVector(0.f, 0.f, 0.f);
+		ASoul* SpawnedSoul = World->SpawnActor<ASoul>(SoulClass, SpawnLocation, GetActorRotation());
+		SpawnedSoul->SetSouls(Attributes->GetSouls());
+	}
+}
+
 void AEnemy::Die()
 {
+	UE_LOG(LogTemp, Warning, TEXT("Enemy Died"));
+	Super::Die();
 	EnemyState = EEnemyState::EES_Dead;
-	PlayDeathMontage();
 	ClearAttackTimer();
 	HideHealthBar();
-	DisableCapsule();
 	SetLifeSpan(DeathLifeSpan);
 	GetCharacterMovement()->bOrientRotationToMovement = false;
-	SetWeaponCollisionEnabled(ECollisionEnabled::NoCollision);
+	SpawnSoul();
 }
 
 void AEnemy::Attack()
 {
-	EnemyState = EEnemyState::EES_Engaged;
 	Super::Attack();
+	if (CombatTarget == nullptr) return;
+	EnemyState = EEnemyState::EES_Engaged;
 	PlayAttackMontage();
 }
 
@@ -142,17 +189,6 @@ void AEnemy::HandleDamage(float DamageAmount)
 	}
 }
 
-int32 AEnemy::PlayDeathMontage()
-{
-	const int32 Selection = Super::PlayDeathMontage();
-	TEnumAsByte<EDeathPose> Pose(Selection);
-	if (Pose < EDeathPose::EDP_MAX)
-	{
-		DeathPose = Pose;
-	}
-
-	return Selection;
-}
 
 void AEnemy::InitializeEnemy()
 {
@@ -296,7 +332,7 @@ void AEnemy::MoveToTarget(AActor* Target)
 	if (EnemyController == nullptr || Target == nullptr) return;
 	FAIMoveRequest MoveRequest;
 	MoveRequest.SetGoalActor(Target);
-	MoveRequest.SetAcceptanceRadius(50.f);
+	MoveRequest.SetAcceptanceRadius(AcceptanceRadius);
 	EnemyController->MoveTo(MoveRequest);
 }
 

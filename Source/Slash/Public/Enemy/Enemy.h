@@ -6,6 +6,7 @@
 #include "GameFramework/Character.h"
 #include "CharacterTypes.h"
 #include "BaseCharacter.h"
+#include "HUD/TargetInterface.h"
 #include "Enemy.generated.h"
 
 // Fill out your copyright notice in the Description page of Project Settings.
@@ -14,7 +15,7 @@ class UPawnSensingComponent;
 
 
 UCLASS()
-class SLASH_API AEnemy : public ABaseCharacter
+class SLASH_API AEnemy : public ABaseCharacter, public ITargetInterface
 {
 	GENERATED_BODY()
 
@@ -31,6 +32,12 @@ public:
 	virtual void GetHit_Implementation(const FVector& ImpactPoint, AActor* Hitter) override;
 	/** </IHitInterface> */
 
+	/** <ITargetInterface> */
+	virtual UWorldUserWidget* GetTargetWidget() const override;
+	virtual void Select() override;
+	virtual void CancelSelect() override;
+	/** </ITargetInterface> */
+
 protected:
 	/** <AActor> */
 	virtual void BeginPlay() override;
@@ -42,14 +49,10 @@ protected:
 	virtual bool CanAttack() override;
 	virtual void AttackEnd() override;
 	virtual void HandleDamage(float DamageAmount) override;
-	virtual int32 PlayDeathMontage() override;
 	/** </ABaseCharacter> */
 
-	UPROPERTY(BlueprintReadOnly)
-	TEnumAsByte<EDeathPose> DeathPose;
-
-	UPROPERTY(BlueprintReadOnly)
-	EEnemyState EnemyState = EEnemyState::EES_Patrolling;
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere)
+	EEnemyState EnemyState;
 
 
 private:
@@ -78,6 +81,7 @@ private:
 	void MoveToTarget(AActor* Target);
 	AActor* ChoosePatrolTarget();
 	void SpawnDefaultWeapon();
+	void SpawnSoul();
 
 
 	UFUNCTION()
@@ -89,14 +93,17 @@ private:
 	UPROPERTY(VisibleAnywhere)
 	UPawnSensingComponent* PawnSensing;
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category = Combat)
 	TSubclassOf<class AWeapon> WeaponClass;
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category = Combat)
 	double CombatRadius = 500.f;
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category = Combat)
 	double AttackRadius = 150.f;
+
+	UPROPERTY(EditAnywhere, Category = Combat)
+	double AcceptanceRadius = 50.f;
 
 	UPROPERTY()
 	class AAIController* EnemyController;
@@ -135,4 +142,13 @@ private:
 
 	UPROPERTY(EditAnywhere, Category = Combat)
 	float DeathLifeSpan = 8.f;
+
+	UPROPERTY(EditAnywhere, Category = Combat)
+	TSubclassOf<class ASoul> SoulClass;
+
+	UPROPERTY(VisibleAnywhere)
+	UWorldUserWidget* ActiveTargetWidget;
+
+	UPROPERTY(EditAnywhere, Category = "UI")
+	TSubclassOf<UWorldUserWidget> TargetBarWidgetClass;
 };

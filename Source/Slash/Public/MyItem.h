@@ -7,6 +7,7 @@
 #include "MyItem.generated.h"
 
 class USphereComponent;
+class USoundBase;
 
 enum class EItemState :uint8
 {
@@ -31,7 +32,7 @@ public:
 	UFUNCTION()
 	virtual void OnSphereEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
-
+	virtual void SpawnPickupSound();
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -57,11 +58,15 @@ protected:
 	USphereComponent* Sphere;
 
 	UPROPERTY(EditAnywhere)
-	class UNiagaraComponent* EmbersEffect;
+	class UNiagaraComponent* ItemEffect;
+
+	UPROPERTY(EditAnywhere)
+	USoundBase* PickupSound;
 private:	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	float RunningTime;
 
-
+	UPROPERTY(EditAnywhere)
+	class UNiagaraSystem* PickupEffect;
 
 };

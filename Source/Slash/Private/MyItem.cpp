@@ -2,9 +2,11 @@
 
 
 #include "MyItem.h"
-#include "SlashCharacter.h"
+#include "Interfaces/PickupInterface.h"
 #include "Components/SphereComponent.h"
 #include "NiagaraComponent.h"
+#include "NiagaraFunctionLibrary.h"
+#include "Kismet/GameplayStatics.h"
 
 // Sets default values
 AMyItem::AMyItem()
@@ -20,8 +22,8 @@ AMyItem::AMyItem()
 	Sphere = CreateDefaultSubobject<USphereComponent>(TEXT("Sphere"));
 	Sphere->SetupAttachment(GetRootComponent());
 
-	EmbersEffect = CreateDefaultSubobject<UNiagaraComponent>(TEXT("Embers"));
-	EmbersEffect->SetupAttachment(GetRootComponent());
+	ItemEffect = CreateDefaultSubobject<UNiagaraComponent>(TEXT("Embers"));
+	ItemEffect->SetupAttachment(GetRootComponent());
 }
 
 float AMyItem::TransformedSin()
@@ -46,28 +48,30 @@ void AMyItem::BeginPlay()
 
 void AMyItem::OnSphereOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	const FString OtherActorName = OtherActor->GetName();
-	if (GEngine) {
-		GEngine->AddOnScreenDebugMessage(1, 30.f, FColor::Red, OtherActorName);
-	}
 
-	ASlashCharacter* SlashCharater = Cast<ASlashCharacter>(OtherActor);
-	if (SlashCharater) {
-		SlashCharater->SetOverlappingItem(this);
+	IPickupInterface* PickupInterface = Cast<IPickupInterface>(OtherActor);
+	if (PickupInterface) {
+		PickupInterface->SetOverlappingItem(this);
+	}
+	if (PickupEffect)
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, PickupEffect, GetActorLocation());
 	}
 
 }
 
 void AMyItem::OnSphereEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
-	const FString OtherActorName = FString("Ending Overlap with: ") + OtherActor->GetName();
-	if (GEngine) {
-		GEngine->AddOnScreenDebugMessage(1, 30.f, FColor::Red, OtherActorName);
+	IPickupInterface* PickupInterface = Cast<IPickupInterface>(OtherActor);
+	if (PickupInterface) {
+		PickupInterface->SetOverlappingItem(nullptr);
 	}
-
-	ASlashCharacter* SlashCharater = Cast<ASlashCharacter>(OtherActor);
-	if (SlashCharater) {
-		SlashCharater->SetOverlappingItem(nullptr);	
+}
+void AMyItem::SpawnPickupSound()
+{
+	if (PickupSound)
+	{
+		UGameplayStatics::SpawnSoundAtLocation(this, PickupSound, GetActorLocation());
 	}
 }
 // Called every frame

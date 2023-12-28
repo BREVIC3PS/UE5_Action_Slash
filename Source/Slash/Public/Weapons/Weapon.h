@@ -11,6 +11,19 @@ class UBoxComponent;
 /**
  *
  */
+
+
+UENUM(BlueprintType)
+enum class EWeaponType : uint8
+{
+	EWT_ShortSword UMETA(DisplayName = "Sho rt Sword"),
+	EWT_LongSword UMETA(DisplayName = "LongSword"),
+	EWT_Bow UMETA(DisplayName = "Bow"),
+
+	EWT_MAX UMETA(DisplayName = "DefaultMAX")
+};
+
+
 UCLASS()
 class SLASH_API AWeapon : public AMyItem
 {
@@ -25,6 +38,9 @@ public:
 	void AttachMeshToSocket(USceneComponent* InParent, const FName& InSocketName);
 
 	TArray<AActor*> IgnoreActors;
+
+	UPROPERTY(EditAnywhere, Category = "Weapon Properties")
+	EWeaponType WeaponType;
 protected:
 	virtual void BeginPlay() override;
 
@@ -60,6 +76,7 @@ private:
 
 	UPROPERTY(EditAnywhere, Category = "Weapon Properties")
 	float Damage = 20.f;
+
 
 public:
 	FORCEINLINE UBoxComponent* GetWeaponBox() const { return WeaponBox; }

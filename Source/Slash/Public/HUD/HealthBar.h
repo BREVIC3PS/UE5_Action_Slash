@@ -16,5 +16,5 @@ class SLASH_API UHealthBar : public UUserWidget
 	
 public:
 	UPROPERTY(meta = (BindWidget))
-	class UProgressBar* HealthBar;//make sure the names match in the blueprint side
+	class UProgressBar* HealthBar;//make sure the names match at the blueprint side
 };
