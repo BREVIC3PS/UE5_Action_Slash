@@ -28,7 +28,6 @@ enum class EActionState : uint8
 	EAS_Equipping UMETA(DisplayName = "Equipping"),
 	EAS_EquippingWeapon UMETA(DisplayName = "EquippingWeapon"),
 	EAS_Dodge UMETA(DisplayName = "Dodge"),
-	EAS_Aiming UMETA(DisplayName = "Aiming"),
 	EAS_Dead UMETA(DisplayName = "Dead")
 };
 
@@ -57,8 +56,20 @@ enum class EEnemyState : uint8
 UENUM(BlueprintType)
 enum class ETurningInPlace : uint8
 {
+	ETIP_NotTurning UMETA(DisplayName = "Not Turning"),
 	ETIP_Left UMETA(DisplayName = "Turning Left"),
 	ETIP_Right UMETA(DisplayName = "Turning Right"),
-	ETIP_NotTurning UMETA(DisplayName = "Not Turning"),
 	ETIP_MAX UMETA(DisplayName = "DefaultMax")
+};
+
+
+UENUM(BlueprintType)
+enum class EBowState : uint8
+{
+	EBS_NotUsingBow UMETA(DisplayName = "Not Using Bow"),
+	EBS_DrawingArrow UMETA(DisplayName = "DrawingArrow"),
+	EBS_Aiming UMETA(DisplayName = "Aiming"),
+	EBS_Ready UMETA(DisplayName = "Ready"),
+	EBS_Shooting UMETA(DisplayName = "Shooting"),
+	EBS_MAX UMETA(DisplayName = "DefaultMax")
 };

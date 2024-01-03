@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "MyItem.h"
+#include "Animation/AnimationAsset.h"
+#include "Weapons/Projectile.h"
 #include "Weapon.generated.h"
 
 class USoundBase;
@@ -16,7 +18,7 @@ class UBoxComponent;
 UENUM(BlueprintType)
 enum class EWeaponType : uint8
 {
-	EWT_ShortSword UMETA(DisplayName = "Sho rt Sword"),
+	EWT_ShortSword UMETA(DisplayName = "Short Sword"),
 	EWT_LongSword UMETA(DisplayName = "LongSword"),
 	EWT_Bow UMETA(DisplayName = "Bow"),
 
@@ -36,11 +38,13 @@ public:
 	void DisableSphereCollision();
 	void PlayEquipSound();
 	void AttachMeshToSocket(USceneComponent* InParent, const FName& InSocketName);
-
+	AProjectile* SpawnProjectile();
 	TArray<AActor*> IgnoreActors;
 
 	UPROPERTY(EditAnywhere, Category = "Weapon Properties")
 	EWeaponType WeaponType;
+
+	void Fire(const FVector& HitTarget, USkeletalMeshComponent* OwnerMesh, FName SocketName);
 protected:
 	virtual void BeginPlay() override;
 
@@ -53,6 +57,9 @@ protected:
 
 	UFUNCTION(BlueprintImplementableEvent)
 	void CreateFields(const FVector& FieldLocation);
+
+	UPROPERTY(VisibleAnywhere, Category = "Weapon Properties")
+	UAnimationAsset* FireAnimation;
 private:
 	void BoxTrace(FHitResult& BoxHit);
 
@@ -77,7 +84,20 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Weapon Properties")
 	float Damage = 20.f;
 
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<AProjectile> ProjectileClass;
+
+	UPROPERTY(EditAnywhere, Category = Crosshairs)
+	class UTexture2D* CrosshairsCenter;
+
+	UPROPERTY(EditAnywhere)
+	float ZoomedFOV = 45.f;
+
+	UPROPERTY(EditAnywhere)
+	float ZoomInterpSpeed = 25.f;
 
 public:
 	FORCEINLINE UBoxComponent* GetWeaponBox() const { return WeaponBox; }
+	FORCEINLINE float GetZoomedFOV() const { return ZoomedFOV; }
+	FORCEINLINE float GetZoomInterpSpeed() const { return ZoomInterpSpeed; }
 };

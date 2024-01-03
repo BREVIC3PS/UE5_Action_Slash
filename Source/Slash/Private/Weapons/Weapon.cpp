@@ -8,6 +8,8 @@
 #include "Components/BoxComponent.h"
 #include "Interfaces/HitInterface.h"
 #include "NiagaraComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/SkeletalMeshSocket.h"
 
 AWeapon::AWeapon()
 {
@@ -75,6 +77,12 @@ void AWeapon::AttachMeshToSocket(USceneComponent* InParent, const FName& InSocke
 	ItemMesh->AttachToComponent(InParent, TransformRules, InSocketName);
 }
 
+AProjectile* AWeapon::SpawnProjectile()
+{
+	return GetWorld()->SpawnActor<AProjectile>(ProjectileClass, GetActorLocation(), GetActorRotation());
+}
+
+
 void AWeapon::OnBoxOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
 	if (ActorIsSameType(OtherActor)) return;
@@ -89,6 +97,11 @@ void AWeapon::OnBoxOverlap(UPrimitiveComponent* OverlappedComponent, AActor* Oth
 		UGameplayStatics::ApplyDamage(BoxHit.GetActor(), Damage, GetInstigator()->GetController(), this, UDamageType::StaticClass());
 		ExecuteGetHit(BoxHit);
 		CreateFields(BoxHit.ImpactPoint);
+		if (GetOwner()->ActorHasTag(TEXT("EngageableTarget")))
+		{
+			ASlashCharacter* Character = Cast< ASlashCharacter>(GetOwner());
+			Character->StartHitReaction();
+		}
 	}
 }
 
@@ -134,4 +147,35 @@ void AWeapon::BoxTrace(FHitResult& BoxHit)
 		true
 	);
 	IgnoreActors.AddUnique(BoxHit.GetActor());
+}
+
+void AWeapon::Fire(const FVector& HitTarget, USkeletalMeshComponent* OwnerMesh, FName SocketName)
+{
+	
+	if (FireAnimation)
+	{
+		//ItemMesh->PlayAnimation(FireAnimation, false);
+	}
+	APawn* InstigatorPawn = Cast<APawn>(GetOwner());
+	const USkeletalMeshSocket* FireSocket = OwnerMesh->GetSocketByName(SocketName);
+	if (FireSocket)
+	{
+		FTransform SocketTransform = FireSocket->GetSocketTransform(OwnerMesh);
+		// From socket to hit location from TraceUnderCrosshairs
+		FVector ToTarget = HitTarget - SocketTransform.GetLocation();
+		FRotator TargetRotation = ToTarget.Rotation();
+		if (ProjectileClass && InstigatorPawn)
+		{
+			FActorSpawnParameters SpawnParams;
+			SpawnParams.Owner = GetOwner();
+			SpawnParams.Instigator = InstigatorPawn;
+			UWorld* World = GetWorld();
+			if (World)
+			{
+				World->SpawnActor<AProjectile>(ProjectileClass, SocketTransform.GetLocation(), TargetRotation, SpawnParams);
+			}
+		}
+
+	}
+	
 }

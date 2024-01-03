@@ -33,6 +33,8 @@ public:
 	virtual void OnSphereEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
 	virtual void SpawnPickupSound();
+
+	UStaticMeshComponent* GetMesh() { return ItemMesh; }
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;

@@ -24,6 +24,12 @@ private:
 	UPROPERTY()
 	USlashOverlap* SlashOverlay;
 
+	class UTexture2D* CrosshairsCenter;
+
+	void DrawCrosshair(UTexture2D* Texture, FVector2D ViewportCenter);
+
 public:
+	void DrawHUD() override;
 	FORCEINLINE USlashOverlap* GetSlashOverlay() const { return SlashOverlay; }
+
 };

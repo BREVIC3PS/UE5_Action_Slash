@@ -10,6 +10,7 @@
 #include "Interfaces/PickupInterface.h"
 #include "SlashCharacter.generated.h"
 
+constexpr auto TRACE_LENGTH = 80000;
 
 class USpringArmComponent;
 class UCameraComponent;
@@ -56,6 +57,13 @@ public:
 	void AimOffset(float DeltaTime);
 	FORCEINLINE float GetAO_Yaw() const { return AO_Yaw; }
 	FORCEINLINE float GetAO_Pitch() const { return AO_Pitch; }
+
+	// 开始停顿动作
+	UFUNCTION(BlueprintCallable)
+	void StartHitReaction();
+
+	// 恢复动作
+	void ResumeAction();
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -90,6 +98,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
 	UInputAction* AimEndAction;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
+	UInputAction* WallRunAction;
+
 	void Move(const FInputActionValue& Value);
 	void Look(const FInputActionValue& Value);
 	void EKeyPressed(const FInputActionValue& Value);
@@ -100,10 +111,21 @@ protected:
 	void AimButtonPressed(const FInputActionValue& Value);
 	void AimButtonReleased(const FInputActionValue& Value);
 	virtual void Attack(const FInputActionValue& Value) override;
+	void WallRun(const FInputActionValue& Value);
+	void DrawArrow();
 	virtual bool CanAttack() override;
+	bool CanShoot();
 	virtual void AttackEnd() override;
 	virtual void DodgeEnd() override;
 
+	UFUNCTION(BlueprintCallable)
+	void ShootEnd();
+
+	UFUNCTION(BlueprintCallable)
+	void AttachArrow();
+
+	UFUNCTION(BlueprintCallable)
+	void DrawEnd();
 
 	bool bCanDisarm();
 	bool bCanArm();
@@ -113,6 +135,7 @@ protected:
 	void EquipBow();
 
 	void PlayEquipMontage(FName SectionName);
+	void PlayShootMontage();
 	virtual void Die() override;
 
 	void LockOnToNearestEnemy(float DeltaTime);
@@ -132,7 +155,17 @@ protected:
 
 private:
 
+	AActor* CombatTarget;
+
 	bool IsUnoccupied();
+
+	FTimerHandle HitReactionTimer;
+
+	UPROPERTY(EditAnywhere)
+	float OriginalAnimationSpeed = 1.f;
+
+	UPROPERTY(EditAnywhere)
+	float HitReactionDuration = 0.2f;
 
 	UPROPERTY(EditAnywhere)
 	float WalkSpeed = 300.f;
@@ -152,6 +185,9 @@ private:
 	UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	ETurningInPlace TurningInPlace = ETurningInPlace::ETIP_NotTurning;
 
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, meta = (AllowPrivateAccess = "true"))
+	EBowState BowState = EBowState::EBS_NotUsingBow;
+
 	UPROPERTY(VisibleAnywhere)
 	USpringArmComponent* CameraBoom;
 
@@ -170,12 +206,32 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = Montages)
 	UAnimMontage* EquipMontage;
 
+	UPROPERTY(EditDefaultsOnly, Category = Montages)
+	UAnimMontage* ShootMontage;
+
+	UPROPERTY(EditDefaultsOnly, Category = Montages)
+	UAnimMontage* VaultMontage;
+
+	UPROPERTY(EditAnywhere)
+	UStaticMeshComponent* AttachedProjectile;
+
 	UPROPERTY()
 	USlashOverlap* SlashOverlay;
+
+	UPROPERTY()
+	class ASlashHUD* HUD;
+
+	class UTexture2D* CrosshairsCenter;
 	
 	void InitializeSlashOverlay();
 
 	void SetHUDHealth();
+
+	void SetHUDCrosshairs(float Deltatime);
+
+	void TraceUnderCrosshairs(FHitResult& TraceHitResult);
+
+	void HideCameraIfCharacterClose();
 
 	// Reference to the currently locked-on enemy
 	AEnemy* LockedEnemy = nullptr;
@@ -186,6 +242,28 @@ private:
 	float InterpAO_Yaw;
 	float AO_Pitch;
 	FRotator StartingAimRotation;
+
+	FVector HitTarget;
+
+	/**
+	* Aiming and FOV
+	*/
+
+	// Field of view when not aiming; set to the camera's base FOV in BeginPlay
+	float DefaultFOV;
+
+	UPROPERTY(EditAnywhere, Category = Camera)
+	float ZoomedFOV = 30.f;
+
+	float CurrentFOV;
+
+	UPROPERTY(EditAnywhere, Category = Camera)
+	float ZoomInterpSpeed = 20.f;
+
+	UPROPERTY(EditAnywhere, Category = Camera)
+
+	float CameraThreshold = 200.f;
+	void InterpFOV(float DeltaTime);
 
 	void TurnInPlace(float DeltaTime);
 };

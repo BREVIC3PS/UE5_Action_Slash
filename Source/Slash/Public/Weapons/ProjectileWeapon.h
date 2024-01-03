@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Weapons/Weapon.h"
+#include "Weapon.h"
 #include "ProjectileWeapon.generated.h"
 
 /**
@@ -13,5 +13,6 @@ UCLASS()
 class SLASH_API AProjectileWeapon : public AWeapon
 {
 	GENERATED_BODY()
-	
+private:
+
 };

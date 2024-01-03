@@ -22,6 +22,9 @@
 #include <Kismet/GameplayStatics.h>
 #include <Enemy/Enemy.h>
 #include <Kismet/KismetMathLibrary.h>
+#include "HUD/SlashHUD.h"
+#include "Weapons/Projectile.h"
+#include "SlashAnimInstance.h"
 
 
 // Sets default values
@@ -47,8 +50,17 @@ ASlashCharacter::ASlashCharacter()
 	CameraBoom->TargetArmLength = 365.f;
 	CameraBoom->SocketOffset = FVector(0.0f, 100.f, 100.0f);
 
+	//Camera Settings
 	ViewCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("ViewCamera"));
 	ViewCamera->SetupAttachment(CameraBoom);
+
+	DefaultFOV = ViewCamera->FieldOfView;
+	CurrentFOV = DefaultFOV;
+	ViewCamera->PostProcessSettings.bOverride_DepthOfFieldFocalDistance = true;
+	ViewCamera->PostProcessSettings.DepthOfFieldFocalDistance = 10000;
+	ViewCamera->PostProcessSettings.bOverride_DepthOfFieldFstop = true;
+	ViewCamera->PostProcessSettings.DepthOfFieldFstop = 4.0;
+
 
 	Hair = CreateDefaultSubobject<UGroomComponent>(TEXT("Hair"));
 	Hair->SetupAttachment(GetMesh());
@@ -61,6 +73,13 @@ ASlashCharacter::ASlashCharacter()
 	EquippedWeapon = nullptr;
 
 	TurningInPlace = ETurningInPlace::ETIP_NotTurning;
+
+	AttachedProjectile = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("AttachedProjectile"));
+	AttachedProjectile->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
+	AttachedProjectile->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	AttachedProjectile->SetupAttachment(GetRootComponent());
+	AttachedProjectile->SetVisibility(false);
+
 }
 
 void ASlashCharacter::GetHit_Implementation(const FVector& ImpactPoint, AActor* Hitter)
@@ -126,12 +145,52 @@ void ASlashCharacter::AimOffset(float DeltaTime)
 	AO_Pitch = GetBaseAimRotation().Pitch;
 }
 
+void ASlashCharacter::StartHitReaction()
+{
+	// 停顿动作的持续时间（秒）
+	
+
+	// 暂停动作
+	//APlayerController* PlayerController = GetWorld()->GetFirstPlayerController();
+	//if (PlayerController)
+	//{
+	//	PlayerController->SetIgnoreLookInput(true);
+	//	PlayerController->SetIgnoreMoveInput(true);
+	//}
+
+	// 设置计时器，用于在一段时间后恢复动作
+	GetWorldTimerManager().SetTimer(HitReactionTimer, this, &ASlashCharacter::ResumeAction, HitReactionDuration, false);
+
+	// 获取动画实例
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+	if (AnimInstance)
+	{
+		// 保存原始动画播放速度
+		OriginalAnimationSpeed = AnimInstance->Montage_GetPlayRate(AttackMontage);
+
+		// 减缓动画播放速度
+		AnimInstance->Montage_SetPlayRate(AttackMontage, 0.2f);
+	}
+}
+
+void ASlashCharacter::ResumeAction()
+{
+	// 恢复原始动画播放速度
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+	if (AnimInstance)
+	{
+		AnimInstance->Montage_SetPlayRate(AttackMontage, OriginalAnimationSpeed);
+	}
+}
+
 // Called when the game starts or when spawned
 void ASlashCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 	InitializeSlashOverlay();
 	Tags.Add(FName("EngageableTarget"));
+	FAttachmentTransformRules TransformRules(EAttachmentRule::SnapToTarget, true);
+	AttachedProjectile->AttachToComponent(GetMesh(), TransformRules, FName("RightIndexSocket"));
 
 }
 
@@ -214,6 +273,9 @@ void ASlashCharacter::Dodge(const FInputActionValue& Value)
 	if (Attributes && Attributes->GetStamina() > Attributes->GetDodgeCost())
 	{
 		ActionState = EActionState::EAS_Dodge;
+		GetCharacterMovement()->Velocity;
+		FRotator NewRotation = UKismetMathLibrary::Conv_VectorToRotator(GetCharacterMovement()->GetLastInputVector()); 
+		SetActorRotation(NewRotation);
 		PlayDodgeMontage();
 		Attributes->UseStamina(Attributes->GetDodgeCost());
 		if (SlashOverlay)
@@ -273,9 +335,17 @@ void ASlashCharacter::AimButtonPressed(const FInputActionValue& Value)
 	if (CharacterState == ECharacterState::ECS_EquippedBow)
 	{
 		MoveState = ECharacterMoveState::ECMS_Aiming;
-		//ChangeToLockedControl();
+		BowState = EBowState::EBS_Aiming;
 		GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
+		//ChangeToLockedControl();
 	}
+}
+
+void ASlashCharacter::DrawArrow()
+{
+	BowState = EBowState::EBS_DrawingArrow;
+	PlayMontageSection(ShootMontage, FName("DrawArrow"));
+	AttachArrow();
 }
 
 void ASlashCharacter::AimButtonReleased(const FInputActionValue& Value)
@@ -283,9 +353,11 @@ void ASlashCharacter::AimButtonReleased(const FInputActionValue& Value)
 	if (CharacterState == ECharacterState::ECS_EquippedBow)
 	{
 		MoveState = ECharacterMoveState::ECMS_Unlocked;
+		ActionState = EActionState::EAS_Unoccupied;
 		ChangeToUnlockedControl();
 		GetCharacterMovement()->MaxWalkSpeed = RunSpeed;
 	}
+	AttachedProjectile->SetVisibility(false);
 }
 
 void ASlashCharacter::Attack(const FInputActionValue& Value)
@@ -293,9 +365,22 @@ void ASlashCharacter::Attack(const FInputActionValue& Value)
 	Super::Attack(Value);
 	if (CanAttack())
 	{
+		FindNearestEnemy();
+		CombatTarget = NearestEnemy;
 		PlayAttackMontage();
 		ActionState = EActionState::EAS_Attacking;
 	}
+	else if (CanShoot())
+	{
+		PlayShootMontage();
+		BowState = EBowState::EBS_Shooting;
+		EquippedWeapon->Fire(HitTarget, GetMesh(), FName("RightIndexSocket"));
+		if (AttachedProjectile)AttachedProjectile->SetVisibility(false);
+	}
+}
+
+void ASlashCharacter::WallRun(const FInputActionValue& Value)
+{
 }
 
 void ASlashCharacter::EquipWeapon(AWeapon* Weapon)
@@ -328,7 +413,15 @@ void ASlashCharacter::EquipBow()
 bool ASlashCharacter::CanAttack()
 {
 	return ActionState == EActionState::EAS_Unoccupied &&
-		CharacterState != ECharacterState::ECS_Unequipped;
+		CharacterState == ECharacterState::ECS_EquippedOneHandedWeapon;
+}
+
+bool ASlashCharacter::CanShoot()
+{
+	return
+		MoveState == ECharacterMoveState::ECMS_Aiming;
+		BowState == EBowState::EBS_Ready &&
+		CharacterState == ECharacterState::ECS_EquippedBow;
 }
 
 bool ASlashCharacter::bCanDisarm()
@@ -351,6 +444,11 @@ void ASlashCharacter::PlayEquipMontage(FName SectionName)
 		AnimInstance->Montage_Play(EquipMontage);
 		AnimInstance->Montage_JumpToSection(SectionName, EquipMontage);
 	}
+}
+
+void ASlashCharacter::PlayShootMontage()
+{
+	PlayMontageSection(ShootMontage, FName("Shoot"));
 }
 
 void ASlashCharacter::Die()
@@ -427,6 +525,21 @@ void ASlashCharacter::DodgeEnd()
 	ActionState = EActionState::EAS_Unoccupied;
 }
 
+void ASlashCharacter::ShootEnd()
+{
+	BowState = EBowState::EBS_Aiming;
+}
+
+void ASlashCharacter::AttachArrow()
+{
+	AttachedProjectile->SetVisibility(true);
+}
+
+void ASlashCharacter::DrawEnd()
+{
+	BowState = EBowState::EBS_Ready;
+}
+
 void ASlashCharacter::FinishEquipping()
 {
 	ActionState = EActionState::EAS_Unoccupied;
@@ -435,7 +548,10 @@ void ASlashCharacter::AttachWeaponToBack()
 {
 	if (EquippedWeapon)
 	{
-		EquippedWeapon->AttachMeshToSocket(GetMesh(), FName("SpineSocket"));
+		if (EquippedWeapon->WeaponType == EWeaponType::EWT_ShortSword)
+			EquippedWeapon->AttachMeshToSocket(GetMesh(), FName("SpineSocket"));
+		if (EquippedWeapon->WeaponType == EWeaponType::EWT_Bow)
+			EquippedWeapon->AttachMeshToSocket(GetMesh(), FName("SpineBowSocket"));
 	}
 }
 
@@ -443,7 +559,10 @@ void ASlashCharacter::AttachWeaponToHand()
 {
 	if (EquippedWeapon)
 	{
-		EquippedWeapon->AttachMeshToSocket(GetMesh(), FName("RightHandSocket"));
+		if(EquippedWeapon->WeaponType==EWeaponType::EWT_ShortSword)
+			EquippedWeapon->AttachMeshToSocket(GetMesh(), FName("RightHandSocket"));
+		if(EquippedWeapon->WeaponType == EWeaponType::EWT_Bow)
+			EquippedWeapon->AttachMeshToSocket(GetMesh(), FName("LeftHandSocket"));
 	}
 }
 void ASlashCharacter::HitReactEnd()
@@ -452,7 +571,14 @@ void ASlashCharacter::HitReactEnd()
 }
 void ASlashCharacter::Disarm()
 {
-	PlayEquipMontage(FName("Unequip"));
+	if (EquippedWeapon->WeaponType == EWeaponType::EWT_ShortSword || EquippedWeapon->WeaponType == EWeaponType::EWT_LongSword)
+	{
+		PlayEquipMontage(FName("Unequip"));
+	}
+	else if (EquippedWeapon->WeaponType == EWeaponType::EWT_Bow)
+	{
+		PlayEquipMontage(FName("UnequipBow"));
+	}
 	CharacterState = ECharacterState::ECS_Unequipped;
 	ActionState = EActionState::EAS_EquippingWeapon;
 
@@ -460,8 +586,16 @@ void ASlashCharacter::Disarm()
 
 void ASlashCharacter::Arm()
 {
-	PlayEquipMontage(FName("Equip"));
-	CharacterState = ECharacterState::ECS_EquippedOneHandedWeapon;
+	if (EquippedWeapon->WeaponType == EWeaponType::EWT_ShortSword || EquippedWeapon->WeaponType == EWeaponType::EWT_LongSword)
+	{
+		PlayEquipMontage(FName("Equip"));
+		CharacterState = ECharacterState::ECS_EquippedOneHandedWeapon;
+	}
+	else if (EquippedWeapon->WeaponType == EWeaponType::EWT_Bow)
+	{
+		PlayEquipMontage(FName("EquipBow"));
+		CharacterState = ECharacterState::ECS_EquippedBow;
+	}
 	ActionState = EActionState::EAS_EquippingWeapon;
 }
 
@@ -481,10 +615,15 @@ void ASlashCharacter::Tick(float DeltaTime)
 		LockOnToNearestEnemy(DeltaTime);
 	}
 
-	if (MoveState == ECharacterMoveState::ECMS_Aiming)
+	else if (MoveState == ECharacterMoveState::ECMS_Aiming)
 	{
 		AimOffset(DeltaTime);
+		FHitResult HitResult;
+		TraceUnderCrosshairs(HitResult);
+		if(BowState == EBowState::EBS_Aiming)DrawArrow();
+		//SetHUDCrosshairs(DeltaTime);
 	}
+	InterpFOV(DeltaTime);
 }
 
 // Called to bind functionality to input
@@ -503,6 +642,7 @@ void ASlashCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
 		EnhancedInputComponent->BindAction(LockAction, ETriggerEvent::Triggered, this, &ASlashCharacter::Lock);
 		EnhancedInputComponent->BindAction(AimStartAction, ETriggerEvent::Triggered, this, &ASlashCharacter::AimButtonPressed);
 		EnhancedInputComponent->BindAction(AimEndAction, ETriggerEvent::Triggered, this, &ASlashCharacter::AimButtonReleased);
+		EnhancedInputComponent->BindAction(WallRunAction, ETriggerEvent::Triggered, this, &ASlashCharacter::WallRun);
 	}
 
 }
@@ -536,13 +676,96 @@ void ASlashCharacter::SetHUDHealth()
 	}
 }
 
+//void ASlashCharacter::SetHUDCrosshairs(float Deltatime)
+//{
+//	HUD = HUD == nullptr ? Cast<ASlashHUD>(Controller->GetHUD()) : HUD;
+//	if (HUD)
+//	{
+//		HUD->DrawHUD();
+//	}
+//}
+
+void ASlashCharacter::TraceUnderCrosshairs(FHitResult& TraceHitResult)
+{
+	FVector2D viewportSize;
+	if (GEngine && GEngine->GameViewport)
+	{
+		GEngine->GameViewport->GetViewportSize(viewportSize);
+	}
+
+	FVector2D CrosshairLocation(viewportSize.X / 2.f, viewportSize.Y / 2.f);
+	FVector CrosshairWorldPosition;
+	FVector CrosshairWorldDirection;
+	bool bScreenToWorld = UGameplayStatics::DeprojectScreenToWorld
+	(UGameplayStatics::GetPlayerController(this, 0), CrosshairLocation, 
+		CrosshairWorldPosition, CrosshairWorldDirection);
+	if (bScreenToWorld)
+	{
+		FVector Start = CrosshairWorldPosition;
+
+		float DistanceToCharacter = (GetActorLocation() - Start).Size();
+		Start += CrosshairWorldDirection * (DistanceToCharacter + 100.f);
+
+		FVector End = Start + CrosshairWorldDirection * TRACE_LENGTH;
+
+		GetWorld()->LineTraceSingleByChannel(TraceHitResult, Start, End, ECollisionChannel::ECC_Visibility);
+		if (!TraceHitResult.bBlockingHit)
+		{
+			TraceHitResult.ImpactPoint = End;
+			HitTarget = End;
+		}
+		else
+		{
+			HitTarget = TraceHitResult.ImpactPoint;
+			DrawDebugSphere(GetWorld(), TraceHitResult.ImpactPoint, 12.f, 12, FColor::Red);
+		}
+	}
+}
+
+void ASlashCharacter::HideCameraIfCharacterClose()
+{
+	if ((ViewCamera->GetComponentLocation() - GetActorLocation()).Size() < CameraThreshold)
+	{
+		GetMesh()->SetVisibility(false);
+		if (EquippedWeapon && EquippedWeapon->GetMesh())
+		{
+			EquippedWeapon->GetMesh()->bOwnerNoSee = true;
+		}
+	}
+	else
+	{
+		GetMesh()->SetVisibility(false);
+		if (EquippedWeapon && EquippedWeapon->GetMesh())
+		{
+			EquippedWeapon->GetMesh()->bOwnerNoSee = false;
+		}
+	}
+}
+
+void ASlashCharacter::InterpFOV(float DeltaTime)
+{
+	if (EquippedWeapon == nullptr) return;
+
+	if (MoveState == ECharacterMoveState::ECMS_Aiming)
+	{
+		CurrentFOV = FMath::FInterpTo(CurrentFOV, EquippedWeapon->GetZoomedFOV(), DeltaTime, EquippedWeapon->GetZoomInterpSpeed());
+	}
+	else
+	{
+		CurrentFOV = FMath::FInterpTo(CurrentFOV, DefaultFOV, DeltaTime, ZoomInterpSpeed);
+	}
+	if(ViewCamera)
+		ViewCamera->SetFieldOfView(CurrentFOV);
+	
+}
+
 void ASlashCharacter::TurnInPlace(float DeltaTime)
 {
 	if (AO_Yaw > 90.f)
 	{
 		TurningInPlace = ETurningInPlace::ETIP_Right;
 	}
-	else if (AO_Yaw < -90.f)
+	else if (AO_Yaw < -70.f)
 	{
 		TurningInPlace = ETurningInPlace::ETIP_Left;
 	}
