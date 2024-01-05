@@ -55,6 +55,8 @@ protected:
 
 	void ExecuteGetHit(FHitResult& BoxHit);
 
+	void ExecuteGetHit(AActor* OtherActor);
+
 	UFUNCTION(BlueprintImplementableEvent)
 	void CreateFields(const FVector& FieldLocation);
 

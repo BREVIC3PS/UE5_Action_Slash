@@ -29,6 +29,7 @@ void ABaseCharacter::GetHit_Implementation(const FVector& ImpactPoint, AActor* H
 {
 	if (IsAlive() && Hitter)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("DirectionalHitReact"));
 		DirectionalHitReact(Hitter->GetActorLocation());
 	}
 	else Die();
@@ -47,11 +48,11 @@ void ABaseCharacter::Attack()
 
 void ABaseCharacter::Attack(const FInputActionValue& Value)
 {
+	Attack();
 }
 
 void ABaseCharacter::Die()
 {
-	UE_LOG(LogTemp, Warning, TEXT("Enemy Died, calling father function"));
 	Tags.Add(FName("Dead"));
 	PlayDeathMontage();
 	DisableCapsule();
@@ -157,6 +158,14 @@ int32 ABaseCharacter::PlayRandomMontageSection(UAnimMontage* Montage, const TArr
 	const int32 Selection = FMath::RandRange(0, MaxSectionIndex);
 	PlayMontageSection(Montage, SectionNames[Selection]);
 	return Selection;
+}
+
+int32 ABaseCharacter::PlayNextMontageSection(UAnimMontage* Montage, const TArray<FName>& SectionNames)
+{
+	if (SectionNames.Num() <= 0) return -1;
+	PlayMontageSection(Montage, SectionNames[AttackCount++]);
+	if (AttackCount >= SectionNames.Num())AttackCount = 0;
+	return AttackCount;
 }
 
 int32 ABaseCharacter::PlayAttackMontage()

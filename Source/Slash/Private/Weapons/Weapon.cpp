@@ -85,24 +85,31 @@ AProjectile* AWeapon::SpawnProjectile()
 
 void AWeapon::OnBoxOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	if (ActorIsSameType(OtherActor)) return;
+	//if (ActorIsSameType(OtherActor)) return;
 
-	FHitResult BoxHit;
-	BoxTrace(BoxHit);
+	//FHitResult BoxHit;
+	//BoxTrace(BoxHit);
 
-	if (BoxHit.GetActor())
+	//if (BoxHit.GetActor())
+	//{
+	//	if (ActorIsSameType(BoxHit.GetActor())) return;
+
+	//	UGameplayStatics::ApplyDamage(BoxHit.GetActor(), Damage, GetInstigator()->GetController(), this, UDamageType::StaticClass());
+	//	ExecuteGetHit(BoxHit);
+	//	CreateFields(BoxHit.ImpactPoint);
+	//}
+	if (OtherActor == GetOwner() || ActorIsSameType(OtherActor)) return;
+	WeaponBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	CreateFields(GetActorLocation());
+	UGameplayStatics::ApplyDamage(OtherActor, Damage, GetInstigator()->GetController(), this, UDamageType::StaticClass());
+	ExecuteGetHit(OtherActor);
+	if (GetOwner()->ActorHasTag(TEXT("EngageableTarget")))
 	{
-		if (ActorIsSameType(BoxHit.GetActor())) return;
-
-		UGameplayStatics::ApplyDamage(BoxHit.GetActor(), Damage, GetInstigator()->GetController(), this, UDamageType::StaticClass());
-		ExecuteGetHit(BoxHit);
-		CreateFields(BoxHit.ImpactPoint);
-		if (GetOwner()->ActorHasTag(TEXT("EngageableTarget")))
-		{
-			ASlashCharacter* Character = Cast< ASlashCharacter>(GetOwner());
-			Character->StartHitReaction();
-		}
+		ASlashCharacter* Character = Cast< ASlashCharacter>(GetOwner());
+		Character->StartHitReaction();
 	}
+	
+
 }
 
 bool AWeapon::ActorIsSameType(AActor* OtherActor)
@@ -116,6 +123,15 @@ void AWeapon::ExecuteGetHit(FHitResult& BoxHit)
 	if (HitInterface)
 	{
 		HitInterface->Execute_GetHit(BoxHit.GetActor(), BoxHit.ImpactPoint, GetOwner());
+	}
+}
+
+void AWeapon::ExecuteGetHit(AActor* OtherActor)
+{
+	IHitInterface* HitInterface = Cast<IHitInterface>(OtherActor);
+	if (HitInterface)
+	{
+		HitInterface->Execute_GetHit(OtherActor, GetActorLocation(), GetOwner());
 	}
 }
 

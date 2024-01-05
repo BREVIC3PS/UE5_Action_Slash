@@ -45,7 +45,6 @@ AProjectile::AProjectile()
 void AProjectile::BeginPlay()
 {
 	Super::BeginPlay();
-	UE_LOG(LogTemp, Warning, TEXT("Projectile Created."));
 	if (Tracer)
 	{
 		TracerComponent = UGameplayStatics::SpawnEmitterAttached(Tracer, CollisionBox, FName(), GetActorLocation(), GetActorRotation(), EAttachLocation::KeepWorldPosition);
@@ -56,7 +55,7 @@ void AProjectile::BeginPlay()
 
 void AProjectile::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
-	if (OtherActor == GetOwner())return;
+	if (OtherActor == GetOwner())return;;
 	UGameplayStatics::ApplyDamage(OtherActor, Damage, GetInstigator()->GetController(), this, UDamageType::StaticClass());
 	ExecuteGetHit(OtherActor);
 	Destroy();
@@ -72,7 +71,7 @@ void AProjectile::ExecuteGetHit(AActor* OtherActor)
 	IHitInterface* HitInterface = Cast<IHitInterface>(OtherActor);
 	if (HitInterface)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("hitting enemy, calling gethit"));
+		UE_LOG(LogTemp, Warning, TEXT("Calling get hit"));
 		HitInterface->Execute_GetHit(OtherActor, GetActorLocation(), GetOwner());
 	}
 }

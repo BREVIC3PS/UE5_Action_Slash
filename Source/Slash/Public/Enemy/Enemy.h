@@ -29,6 +29,7 @@ public:
 	/** </AActor> */
 
 	/** <IHitInterface> */
+	UFUNCTION(BlueprintCallable)
 	virtual void GetHit_Implementation(const FVector& ImpactPoint, AActor* Hitter) override;
 	/** </IHitInterface> */
 
@@ -97,7 +98,7 @@ private:
 	TSubclassOf<class AWeapon> WeaponClass;
 
 	UPROPERTY(EditAnywhere, Category = Combat)
-	double CombatRadius = 500.f;
+	double CombatRadius = 700.f;
 
 	UPROPERTY(EditAnywhere, Category = Combat)
 	double AttackRadius = 150.f;
@@ -127,7 +128,7 @@ private:
 	float PatrolWaitMax = 10.f;
 
 	UPROPERTY(EditAnywhere, Category = Combat)
-	float PatrollingSpeed = 125.f;
+	float PatrollingSpeed = 100.f;
 
 	FTimerHandle AttackTimer;
 
@@ -138,7 +139,7 @@ private:
 	float AttackMax = 1.f;
 
 	UPROPERTY(EditAnywhere, Category = Combat)
-	float ChasingSpeed = 300.f;
+	float ChasingSpeed = 350.f;
 
 	UPROPERTY(EditAnywhere, Category = Combat)
 	float DeathLifeSpan = 8.f;

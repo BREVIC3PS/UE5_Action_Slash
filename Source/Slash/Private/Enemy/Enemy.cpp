@@ -83,6 +83,7 @@ void AEnemy::Destroyed()
 
 void AEnemy::GetHit_Implementation(const FVector& ImpactPoint, AActor* Hitter)
 {
+	UE_LOG(LogTemp, Warning, TEXT("enemy's gethit being called"));
 	Super::GetHit_Implementation(ImpactPoint, Hitter);
 	if(!IsDead())ShowHealthBar();
 	ClearPatrolTimer();
@@ -142,13 +143,12 @@ void AEnemy::SpawnSoul()
 	{
 		FVector SpawnLocation = GetActorLocation() + FVector(0.f, 0.f, 0.f);
 		ASoul* SpawnedSoul = World->SpawnActor<ASoul>(SoulClass, SpawnLocation, GetActorRotation());
-		SpawnedSoul->SetSouls(Attributes->GetSouls());
+		if(SpawnedSoul)SpawnedSoul->SetSouls(Attributes->GetSouls());
 	}
 }
 
 void AEnemy::Die()
 {
-	UE_LOG(LogTemp, Warning, TEXT("Enemy Died"));
 	Super::Die();
 	EnemyState = EEnemyState::EES_Dead;
 	ClearAttackTimer();

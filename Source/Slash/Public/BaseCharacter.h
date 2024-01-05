@@ -62,12 +62,15 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	UAttributeComponents* Attributes;
-
-	UPROPERTY(BlueprintReadOnly, Category = Combat)
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Combat)
 	AActor* CombatTarget;
 
 	UPROPERTY(EditAnywhere, Category = Combat)
 	double WarpTargetDistance = 75.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Combat)
+	double WarpDistanceSquared = 90000.f;
 
 	UPROPERTY(BlueprintReadOnly)
 	TEnumAsByte<EDeathPose> DeathPose;
@@ -75,9 +78,16 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = Combat)
 	UAnimMontage* AttackMontage;
 
-	void PlayMontageSection(UAnimMontage* Montage, const FName& SectionName);
+	UPROPERTY(EditAnywhere, Category = Combat)
+	TArray<FName> AttackMontageSections;
+
+	virtual void PlayMontageSection(UAnimMontage* Montage, const FName& SectionName);
+	int32 PlayNextMontageSection(UAnimMontage* Montage, const TArray<FName>& SectionNames);
+
 private:
 	int32 PlayRandomMontageSection(UAnimMontage* Montage, const TArray<FName>& SectionNames);
+
+	
 
 	UPROPERTY(EditAnywhere, Category = Combat)
 	USoundBase* HitSound;
@@ -85,6 +95,7 @@ private:
 	UPROPERTY(EditAnywhere, Category = Combat)
 	UParticleSystem* HitParticles;
 
+	int32 AttackCount = 0;
 
 	UPROPERTY(EditDefaultsOnly, Category = Combat)
 	UAnimMontage* HitReactMontage;
@@ -95,8 +106,6 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = Combat)
 	UAnimMontage* DodgeMontage;
 
-	UPROPERTY(EditAnywhere, Category = Combat)
-	TArray<FName> AttackMontageSections;
 
 	UPROPERTY(EditAnywhere, Category = Combat)
 	TArray<FName> DeathMontageSections;

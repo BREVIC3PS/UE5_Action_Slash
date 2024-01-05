@@ -157,6 +157,9 @@ void ASlashCharacter::StartHitReaction()
 	//	PlayerController->SetIgnoreLookInput(true);
 	//	PlayerController->SetIgnoreMoveInput(true);
 	//}
+	// 
+	// 如果计时器仍在运行，中止它
+	GetWorldTimerManager().ClearTimer(HitReactionTimer);
 
 	// 设置计时器，用于在一段时间后恢复动作
 	GetWorldTimerManager().SetTimer(HitReactionTimer, this, &ASlashCharacter::ResumeAction, HitReactionDuration, false);
@@ -169,7 +172,7 @@ void ASlashCharacter::StartHitReaction()
 		OriginalAnimationSpeed = AnimInstance->Montage_GetPlayRate(AttackMontage);
 
 		// 减缓动画播放速度
-		AnimInstance->Montage_SetPlayRate(AttackMontage, 0.2f);
+		AnimInstance->Montage_SetPlayRate(AttackMontage, 0.05f);
 	}
 }
 
@@ -191,6 +194,7 @@ void ASlashCharacter::BeginPlay()
 	Tags.Add(FName("EngageableTarget"));
 	FAttachmentTransformRules TransformRules(EAttachmentRule::SnapToTarget, true);
 	AttachedProjectile->AttachToComponent(GetMesh(), TransformRules, FName("RightIndexSocket"));
+	FindNearestEnemy();
 
 }
 
@@ -354,6 +358,7 @@ void ASlashCharacter::AimButtonReleased(const FInputActionValue& Value)
 	{
 		MoveState = ECharacterMoveState::ECMS_Unlocked;
 		ActionState = EActionState::EAS_Unoccupied;
+		BowState = EBowState::EBS_NotUsingBow;
 		ChangeToUnlockedControl();
 		GetCharacterMovement()->MaxWalkSpeed = RunSpeed;
 	}
@@ -366,9 +371,8 @@ void ASlashCharacter::Attack(const FInputActionValue& Value)
 	if (CanAttack())
 	{
 		FindNearestEnemy();
-		CombatTarget = NearestEnemy;
-		PlayAttackMontage();
 		ActionState = EActionState::EAS_Attacking;
+		PlayAttackMontage();
 	}
 	else if (CanShoot())
 	{
@@ -412,16 +416,21 @@ void ASlashCharacter::EquipBow()
 
 bool ASlashCharacter::CanAttack()
 {
-	return ActionState == EActionState::EAS_Unoccupied &&
+	return (ActionState == EActionState::EAS_Unoccupied || ActionState == EActionState::EAS_AttackFinish) &&
 		CharacterState == ECharacterState::ECS_EquippedOneHandedWeapon;
 }
 
 bool ASlashCharacter::CanShoot()
 {
 	return
-		MoveState == ECharacterMoveState::ECMS_Aiming;
+		MoveState == ECharacterMoveState::ECMS_Aiming &&
 		BowState == EBowState::EBS_Ready &&
 		CharacterState == ECharacterState::ECS_EquippedBow;
+}
+
+void ASlashCharacter::AttackFinish()
+{
+	ActionState = EActionState::EAS_AttackFinish;
 }
 
 bool ASlashCharacter::bCanDisarm()
@@ -489,28 +498,31 @@ void ASlashCharacter::FindNearestEnemy()
 	TArray<AActor*> FoundActors;
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AEnemy::StaticClass(), FoundActors);
 
-	float NearestDistance = MAX_FLT;
+	float NearestDistanceSquared = MAX_FLT;
 
 	AActor* NearestActor = nullptr;
 
 	for (AActor* Enemy : FoundActors)
 	{
 		float Distance = FVector::DistSquared(GetActorLocation(), Enemy->GetActorLocation());
-		if (Distance < NearestDistance)
+		if ((Distance < NearestDistanceSquared) && !(Enemy->ActorHasTag(FName("Dead"))))
 		{
 			NearestActor = Enemy;
-			NearestDistance = Distance;
+			NearestDistanceSquared = Distance;
 		}
 	}
-	if (NearestActor != nullptr)
+	if (NearestActor != nullptr && NearestDistanceSquared < WarpDistanceSquared)
 	{
 		NearestEnemy = Cast<AEnemy>(NearestActor);
-		if (NearestEnemy)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("Found the nearestEnemy!"));
-			LockedEnemy = NearestEnemy;
-			LockedEnemy->Select();
-		}
+		UE_LOG(LogTemp, Warning, TEXT("SquaredDistance: %f"), NearestDistanceSquared);
+		LockedEnemy = NearestEnemy;
+		CombatTarget = NearestEnemy;
+		//LockedEnemy->Select();
+		
+	}
+	else
+	{
+		CombatTarget = nullptr;
 	}
 }
 
@@ -713,12 +725,21 @@ void ASlashCharacter::TraceUnderCrosshairs(FHitResult& TraceHitResult)
 		{
 			TraceHitResult.ImpactPoint = End;
 			HitTarget = End;
+			DrawDebugSphere(GetWorld(), TraceHitResult.ImpactPoint, 12.f, 6, FColor::Green);
 		}
 		else
 		{
 			HitTarget = TraceHitResult.ImpactPoint;
-			DrawDebugSphere(GetWorld(), TraceHitResult.ImpactPoint, 12.f, 12, FColor::Red);
+			if (TraceHitResult.GetActor()->ActorHasTag(TEXT("Enemy")))
+			{
+				DrawDebugSphere(GetWorld(), TraceHitResult.ImpactPoint, 12.f, 6, FColor::Red);
+			}
+			else
+			{
+				DrawDebugSphere(GetWorld(), TraceHitResult.ImpactPoint, 12.f, 6, FColor::Green);
+			}
 		}
+		
 	}
 }
 
@@ -740,6 +761,11 @@ void ASlashCharacter::HideCameraIfCharacterClose()
 			EquippedWeapon->GetMesh()->bOwnerNoSee = false;
 		}
 	}
+}
+
+int32 ASlashCharacter::PlayAttackMontage()
+{
+	return PlayNextMontageSection(AttackMontage, AttackMontageSections);
 }
 
 void ASlashCharacter::InterpFOV(float DeltaTime)

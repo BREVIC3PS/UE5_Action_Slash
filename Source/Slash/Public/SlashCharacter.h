@@ -115,8 +115,13 @@ protected:
 	void DrawArrow();
 	virtual bool CanAttack() override;
 	bool CanShoot();
+
+
 	virtual void AttackEnd() override;
 	virtual void DodgeEnd() override;
+
+	UFUNCTION(BlueprintCallable)
+	void AttackFinish();
 
 	UFUNCTION(BlueprintCallable)
 	void ShootEnd();
@@ -155,8 +160,6 @@ protected:
 
 private:
 
-	AActor* CombatTarget;
-
 	bool IsUnoccupied();
 
 	FTimerHandle HitReactionTimer;
@@ -165,7 +168,7 @@ private:
 	float OriginalAnimationSpeed = 1.f;
 
 	UPROPERTY(EditAnywhere)
-	float HitReactionDuration = 0.2f;
+	float HitReactionDuration = 0.1f;
 
 	UPROPERTY(EditAnywhere)
 	float WalkSpeed = 300.f;
@@ -179,7 +182,7 @@ private:
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, meta = (AllowPrivateAccess = "true"))
 	ECharacterMoveState MoveState = ECharacterMoveState::ECMS_Unlocked;
 
-	UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, meta = (AllowPrivateAccess = "true"))
 	EActionState ActionState = EActionState::EAS_Unoccupied;
 
 	UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
@@ -233,9 +236,12 @@ private:
 
 	void HideCameraIfCharacterClose();
 
+	int32 PlayAttackMontage() override;
+
 	// Reference to the currently locked-on enemy
 	AEnemy* LockedEnemy = nullptr;
 
+	UPROPERTY(VisibleAnywhere)
 	AEnemy* NearestEnemy = nullptr;
 
 	float AO_Yaw;
