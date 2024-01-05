@@ -30,6 +30,10 @@ Enemy Patrol: AI controllers are configured for system-controlled enemies, enabl
 ![image](Demo/Gifs/DifferentEnemyBehavior.gif)  
 Diverse Enemy Behaviors: Utilizing C++ class inheritance, distinct behaviors and attributes for different enemies have been implemented. Each enemy has unique numerical characteristics, varied attack animations, and different aggression levels. Future plans involve employing behavior tree design to create even more intricate and diverse enemy behaviors.
 
+## Breakable Item
+![image](Demo/Gifs/GoldPickup.gif)  
+Breakable Item: Used the Chaos destruction system to design breakable objects, spawning treasure and loot upon destruction, and a sophisticated HUD displaying gold counts and experience points are created.
+
 # Features to come
 ### Riding system
 ### More weapons
