@@ -6,7 +6,8 @@ The game seamlessly blends grand fantasy storytelling, eerie atmospheres, and de
 The game is developed entirely in C++, without the use of any third-party plugins.
 
 # Demo
-[Demo](https://www.youtube.com/watch?v=2m4XY6OuuPE)
+[Demo1](https://www.youtube.com/watch?v=2m4XY6OuuPE)
+[Demo2](https://www.youtube.com/watch?v=nfjOtbHbcUc)
 
 (If gifs are not shown please wait or go to [Gifs](Demo/Gifs) to watch them.)
 # Features
